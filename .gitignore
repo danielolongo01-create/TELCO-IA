@@ -1,0 +1,10 @@
+.venv/
+.venv-wsl/
+__pycache__/
+*.py[cod]
+.env
+.DS_Store
+telemetry_history.db
+*.log
+data/chroma_db/*
+!data/chroma_db/.gitkeep

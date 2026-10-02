@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NOC - AI Monitoring Kinshasa</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --bg-dark: #090c10;
+            --panel-bg: #111622;
+            --panel-card: #151c2a;
+            --border-color: #1f293d;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-cyan: #06b6d4;
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --accent-orange: #f97316;
+            --accent-green: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 16px;
+            height: 48px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            z-index: 100;
+        }
+
+        .header-logo {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .header-logo i {
+            color: var(--accent-cyan);
+            font-size: 1.1rem;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+        }
+
+        .header-user {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .wrapper {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 48px);
+        }
+
+        aside {
+            width: 50px;
+            background: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 14px 0;
+            gap: 20px;
+            color: var(--text-muted);
+            z-index: 90;
+        }
+
+        aside i {
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        aside i:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        aside i.active {
+            color: var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        aside .nav-bottom {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            align-items: center;
+        }
+
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 290px 1fr 360px;
+            gap: 8px;
+            padding: 8px;
+            overflow: hidden;
+            background: var(--bg-dark);
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 10px 12px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .col-left {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+        }
+
+        .kpi-card {
+            background: var(--panel-card);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .incident-badge {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .incident-badge .crit {
+            color: var(--accent-red);
+            margin-right: 8px;
+        }
+
+        .incident-badge .maj {
+            color: var(--accent-orange);
+        }
+
+        .gauge-container {
+            position: relative;
+            width: 140px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .gauge-label {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .col-center {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1;
+        }
+
+        .dynamic-view {
+            display: none;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            overflow-y: auto;
+            background: var(--panel-bg);
+            color: var(--text-primary);
+        }
+
+        .map-banner {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(17, 22, 34, 0.92);
+            border: 1px solid var(--accent-red);
+            padding: 8px 18px;
+            border-radius: 20px;
+            z-index: 500;
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.35);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(8px);
+        }
+
+        .col-right {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 8px;
+            overflow-y: auto;
+        }
+
+        .diag-box {
+            background: var(--panel-card);
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            line-height: 1.45;
+            color: var(--text-secondary);
+        }
+
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--panel-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        .chat-history {
+            flex: 1;
+            padding: 12px;
+            overflow-y: auto;
+            font-size: 0.78rem;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .msg-bubble {
+            padding: 10px 14px;
+            border-radius: 6px;
+            max-width: 90%;
+            font-size: 0.78rem;
+            line-height: 1.5;
+        }
+
+        .msg-bubble.user {
+            background: var(--accent-blue);
+            color: #fff;
+            align-self: flex-end;
+        }
+
+        .msg-bubble.ai {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            align-self: flex-start;
+        }
+
+        .chat-bar {
+            display: flex;
+            padding: 8px;
+            border-top: 1px solid var(--border-color);
+            gap: 8px;
+            background: var(--panel-bg);
+        }
+
+        .chat-bar input {
+            flex: 1;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.78rem;
+            outline: none;
+        }
+
+        .chat-bar button {
+            background: var(--accent-blue);
+            border: none;
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* Style des popups Leaflet personnalisées */
+        .leaflet-popup-content-wrapper {
+            background: #111622 !important;
+            color: #e2e8f0 !important;
+            border: 1px solid #1f293d;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .leaflet-popup-tip {
+            background: #111622 !important;
+        }
+
+        .cell-popup {
+            text-align: center;
+            padding: 4px;
+        }
+
+        .cell-popup h4 {
+            color: #06b6d4;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+            border-bottom: 1px solid #1f293d;
+            padding-bottom: 4px;
+        }
+
+        .cell-popup p {
+            font-size: 0.75rem;
+            margin: 2px 0;
+            color: #94a3b8;
+        }
+
+        .live-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .live-row span:first-child {
+            color: var(--text-muted);
+        }
+
+        .live-row span:last-child {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .live-status {
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .live-status.ok {
+            background: rgba(16, 185, 129, .15);
+            color: var(--accent-green);
+        }
+
+        .live-status.stale {
+            background: rgba(249, 115, 22, .15);
+            color: var(--accent-orange);
+        }
+
+        .live-status.off {
+            background: rgba(239, 68, 68, .15);
+            color: var(--accent-red);
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="header-logo">
+            <i class="fa-solid fa-cube"></i> NOC MONITORING - KINSHASA
+        </div>
+        <div class="header-right">
+            <span><i class="fa-regular fa-bell"></i></span>
+            <span id="clock" title="Heure de Kinshasa">--</span>
+            <div class="header-user">
+                <i class="fa-solid fa-user-gear"></i>
+                <span>User ID: 0x1A</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="wrapper">
+        <aside>
+            <i class="fa-solid fa-table-cells-large active" title="Dashboard GIS"
+                onclick="switchNav(this, 'map-view')"></i>
+            <i class="fa-solid fa-clock-rotate-left" title="Historique" onclick="switchNav(this, 'history-view')"></i>
+            <i class="fa-solid fa-user-group" title="Équipe NOC" onclick="switchNav(this, 'team-view')"></i>
+            <i class="fa-solid fa-sliders" title="Paramètres 3GPP" onclick="switchNav(this, 'settings-view')"></i>
+            <i class="fa-solid fa-chart-line" title="Analytics Avancés" onclick="switchNav(this, 'analytics-view')"></i>
+            <div class="nav-bottom">
+                <i class="fa-solid fa-circle-exclamation" style="color:var(--accent-red)" title="Alarmes critiques"
+                    onclick="switchNav(this, 'alerts-view')"></i>
+                <i class="fa-solid fa-right-from-bracket" title="Déconnexion" onclick="logoutSystem()"></i>
+            </div>
+        </aside>
+
+        <main>
+            <div class="col-left">
+                <div class="panel kpi-card">
+                    <div class="panel-header" style="padding:0 0 6px 0;">
+                        <span>NETWORK TELEMETRY</span>
+                        <span style="font-size:0.65rem; color:var(--text-muted)">RSRP · sonde téléphone</span>
+                    </div>
+                    <div style="font-size:1.3rem; font-weight:700; color:#fff;" id="rsrp-val">-- dBm</div>
+                    <canvas id="throughputChart" height="90"></canvas>
+                </div>
+
+                <div class="panel kpi-card">
+                    <div class="panel-header" style="padding:0 0 6px 0;">
+                        <span>BLER</span>
+                        <span style="font-size:0.65rem; color:var(--text-muted)" id="bler-tag">estimé</span>
+                    </div>
+                    <div style="font-size:1.3rem; font-weight:700; color:#fff;" id="bler-val">-- %</div>
+                    <canvas id="blerChart" height="90"></canvas>
+                </div>
+
+                <div class="panel kpi-card">
+                    <div class="panel-header" style="padding:0 0 6px 0;">
+                        <span>SINR</span>
+                        <span style="font-size:0.65rem; color:var(--text-muted)">dB</span>
+                    </div>
+                    <div style="font-size:1.3rem; font-weight:700; color:#fff;" id="sinr-val">-- dB</div>
+                    <canvas id="sinrChart" height="90"></canvas>
+                </div>
+
+                <div class="panel kpi-card">
+                    <div class="panel-header" style="padding:0 0 6px 0;">
+                        <span>MESURES EN DIRECT</span>
+                        <span class="live-status off" id="live-status">Aucune donnée</span>
+                    </div>
+                    <div class="live-row"><span>Cellule</span><span id="lv-cell">-</span></div>
+                    <div class="live-row"><span>Source</span><span id="lv-source">-</span></div>
+                    <div class="live-row"><span>RSRP</span><span id="lv-rsrp">-</span></div>
+                    <div class="live-row"><span>SINR</span><span id="lv-sinr">-</span></div>
+                    <div class="live-row"><span>BLER</span><span id="lv-bler">-</span></div>
+                    <div class="live-row"><span>Perte de paquets</span><span id="lv-loss">-</span></div>
+                    <div class="live-row"><span>Latence</span><span id="lv-lat">-</span></div>
+                    <div class="live-row"><span>Position</span><span id="lv-gps">en attente…</span></div>
+                    <div class="live-row"><span>Dernière mesure</span><span id="lv-age">-</span></div>
+                </div>
+            </div>
+
+            <div class="panel col-center">
+                <div id="map-view" style="width:100%; height:100%; position:relative;">
+                    <div class="map-banner" id="mapBanner" style="display:none">
+                        <i class="fa-solid fa-triangle-exclamation" style="color:var(--accent-red)"></i>
+                        <span id="mapBannerText"></span>
+                    </div>
+                    <div id="map"></div>
+                </div>
+
+                <div id="history-view" class="dynamic-view">
+                    <h3> Historique des Incidents & Mémoire Épisodique</h3>
+                    <br>
+                    <ul id="history-list"
+                        style="line-height:1.8; font-size:0.85rem; color:var(--text-secondary); list-style:none; padding:0;">
+                        <li>Chargement…</li>
+                    </ul>
+                </div>
+
+                <div id="team-view" class="dynamic-view">
+                    <h3> Équipe NOC & Opérateurs Actifs</h3>
+                    <br>
+                    <p style="font-size:0.85rem; color:var(--text-secondary);">• Engineer 0x1A (Connecté - Superviseur)
+                    </p>
+                    <p style="font-size:0.85rem; color:var(--text-secondary);">• NOC Agent 02 (En attente de validation)
+                    </p>
+                </div>
+
+                <div id="settings-view" class="dynamic-view">
+                    <h3> Configuration des Seuils 3GPP</h3>
+                    <br>
+                    <label style="font-size:0.8rem;">Seuil critique RSRP (dBm) :</label><br>
+                    <input type="number" value="-110"
+                        style="background:#090c10; border:1px solid #1f293d; color:#fff; padding:6px; border-radius:4px; margin-top:4px;"><br><br>
+                    <label style="font-size:0.8rem;">Seuil d'alerte BLER (%) :</label><br>
+                    <input type="number" value="8"
+                        style="background:#090c10; border:1px solid #1f293d; color:#fff; padding:6px; border-radius:4px; margin-top:4px;">
+                </div>
+
+                <div id="analytics-view" class="dynamic-view">
+                    <h3> Analyse Télémétrique Approfondie</h3>
+                    <p style="font-size:0.85rem; color:var(--text-secondary); margin-top:10px;">Graphiques comparatifs
+                        multi-cellules et prédictions RLF.</p>
+                </div>
+
+                <div id="alerts-view" class="dynamic-view">
+                    <h3 style="color:var(--accent-red)"> Alarmes Réseau Actives</h3>
+                    <p id="alerts-text" style="font-size:0.85rem; color:var(--text-secondary); margin-top:10px;">Aucune
+                        alarme active.</p>
+                </div>
+            </div>
+
+            <div class="col-right">
+                <div id="diag-wrap" style="display:none; flex-direction:column; gap:8px;">
+                    <div class="panel-header">ALERTE RÉSEAU (TEMPS RÉEL)</div>
+                    <div class="diag-box" id="llm-diag-box"></div>
+                </div>
+
+                <div class="panel-header">TELE-LLM ASSISTANT CHAT</div>
+                <div class="chat-section">
+                    <div class="chat-history" id="chatLogs">
+                        <div class="msg-bubble ai">Assistant Tele-LLM actif. Posez vos questions sur la cellule 0x1A2B3
+                            ou les normes 3GPP.</div>
+                    </div>
+                    <div class="chat-bar">
+                        <input type="text" id="chatInp" placeholder="Poser une question au LLM..."
+                            onkeydown="if(event.key==='Enter') sendChat()">
+                        <button onclick="sendChat()"><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // 1. INITIALISATION CARTE LEAFLET
+        const KINSHASA_LAT = -4.3165;
+        const KINSHASA_LNG = 15.3050;
+
+        const map = L.map('map', { zoomControl: false }).setView([KINSHASA_LAT, KINSHASA_LNG], 14);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Marqueur de la position réelle du téléphone
+        let phoneMarker = null;
+        let phoneCircle = null;
+        let firstFix = true;
+        function updatePhoneLocation(lat, lon, acc) {
+            if (lat == null || lon == null) return;
+            if (!phoneMarker) {
+                phoneMarker = L.circleMarker([lat, lon], {
+                    radius: 9, color: '#fff', weight: 2, fillColor: '#3b82f6', fillOpacity: 1
+                }).addTo(map).bindTooltip('Sonde (téléphone)', { permanent: false });
+                phoneCircle = L.circle([lat, lon], { radius: acc || 50, color: '#3b82f6', weight: 1, fillOpacity: 0.1 }).addTo(map);
+            } else {
+                phoneMarker.setLatLng([lat, lon]);
+                phoneCircle.setLatLng([lat, lon]);
+                if (acc) phoneCircle.setRadius(acc);
+            }
+            if (firstFix) { map.setView([lat, lon], 15); firstFix = false; }
+        }
+
+        setTimeout(() => { map.invalidateSize(); }, 400);
+
+        // 2. NAVIGATION DYNAMIQUE
+        function switchNav(element, viewId) {
+            document.querySelectorAll('aside i').forEach(icon => icon.classList.remove('active'));
+            element.classList.add('active');
+
+            document.getElementById('map-view').style.display = 'none';
+            document.querySelectorAll('.dynamic-view').forEach(view => view.style.display = 'none');
+
+            const target = document.getElementById(viewId);
+            if (target) {
+                target.style.display = 'block';
+                if (viewId === 'map-view') {
+                    setTimeout(() => { map.invalidateSize(); }, 200);
+                }
+            }
+        }
+
+        function logoutSystem() {
+            if (confirm("Voulez-vous fermer la session NOC ?")) {
+                alert("Session fermée.");
+            }
+        }
+
+        // 3. GRAPHIQUES CHART.JS
+        const ctxThroughput = document.getElementById('throughputChart').getContext('2d');
+        const throughputChart = new Chart(ctxThroughput, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{ data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.15)', fill: true, borderWidth: 2, tension: 0.4, pointRadius: 0 }]
+            },
+            options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+        });
+
+        const mkChart = (id, color, bg) => new Chart(document.getElementById(id).getContext('2d'), {
+            type: 'line',
+            data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: bg, fill: true, borderWidth: 2, tension: 0.4, pointRadius: 0 }] },
+            options: { animation: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+        });
+        const blerChart = mkChart('blerChart', '#f97316', 'rgba(249, 115, 22, 0.15)');
+        const sinrChart = mkChart('sinrChart', '#10b981', 'rgba(16, 185, 129, 0.15)');
+        function pushPoint(chart, value, max = 40) {
+            if (value === null || value === undefined) return;
+            chart.data.labels.push('');
+            chart.data.datasets[0].data.push(value);
+            if (chart.data.datasets[0].data.length > max) { chart.data.labels.shift(); chart.data.datasets[0].data.shift(); }
+            chart.update();
+        }
+
+        // Horloge automatique (heure de Kinshasa)
+        function updateClock() {
+            const now = new Date();
+            const opts = { timeZone: 'Africa/Kinshasa' };
+            const d = now.toLocaleDateString('fr-FR', { ...opts, day: 'numeric', month: 'short', year: 'numeric' });
+            const t = now.toLocaleTimeString('fr-FR', { ...opts, hour: '2-digit', minute: '2-digit' });
+            document.getElementById('clock').textContent = `${d} | ${t}`;
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        // Panneau "mesures en direct"
+        let lastDataTs = null;     // horodatage serveur (ms) de la dernière mesure
+        let wsConnected = false;
+        const fmt = (v, unit, digits = 1) => (v === null || v === undefined) ? '-' : `${Number(v).toFixed(digits)} ${unit}`;
+
+        function updateLivePanel(data) {
+            document.getElementById('lv-cell').textContent = data.cell_id || '-';
+            document.getElementById('lv-source').textContent = data.source || '-';
+            document.getElementById('lv-rsrp').textContent = fmt(data.rsrp, 'dBm', 0);
+            document.getElementById('lv-sinr').textContent = fmt(data.sinr, 'dB');
+            const blerTxt = (data.bler === null || data.bler === undefined) ? '-' : `${Number(data.bler).toFixed(1)} %${data.bler_estimated ? ' (estimé)' : ''}`;
+            document.getElementById('lv-bler').textContent = blerTxt;
+            document.getElementById('lv-loss').textContent = fmt(data.packet_loss, '%');
+            document.getElementById('lv-lat').textContent = fmt(data.latency_ms, 'ms', 0);
+            document.getElementById('lv-gps').textContent = (data.lat != null && data.lon != null)
+                ? `${data.lat.toFixed(5)}, ${data.lon.toFixed(5)}${data.accuracy ? ' (±' + Math.round(data.accuracy) + ' m)' : ''}`
+                : 'GPS indisponible';
+            lastDataTs = data.ts ? data.ts * 1000 : Date.now();
+            refreshLiveStatus();
+        }
+
+        function refreshLiveStatus() {
+            const st = document.getElementById('live-status');
+            const age = document.getElementById('lv-age');
+            if (!wsConnected) { st.className = 'live-status off'; st.textContent = 'Serveur déconnecté'; }
+            else if (lastDataTs === null) { st.className = 'live-status off'; st.textContent = 'Aucune donnée'; age.textContent = '-'; return; }
+            else {
+                const sec = Math.max(0, Math.round((Date.now() - lastDataTs) / 1000));
+                age.textContent = `il y a ${sec} s`;
+                if (sec <= 15) { st.className = 'live-status ok'; st.textContent = 'LIVE'; }
+                else { st.className = 'live-status stale'; st.textContent = 'Sonde silencieuse'; }
+                return;
+            }
+            if (lastDataTs !== null) age.textContent = `il y a ${Math.max(0, Math.round((Date.now() - lastDataTs) / 1000))} s`;
+        }
+        setInterval(refreshLiveStatus, 1000);
+
+        // 4. WEBSOCKET REAL-TIME
+        let ws;
+        let lastCellId = '0x1A2B3';
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host || '127.0.0.1:8000';
+            ws = new WebSocket(`${protocol}//${host}/ws/telemetry`);
+
+            ws.onopen = function () {
+                console.log("WebSocket connecté au serveur NOC.");
+                wsConnected = true; refreshLiveStatus();
+                if (window.Notification && Notification.permission === 'default') Notification.requestPermission();
+                clearInterval(window._wsPing);
+                window._wsPing = setInterval(() => { if (ws.readyState === 1) ws.send('ping'); }, 20000);
+            };
+
+            ws.onmessage = function (e) {
+                if (e.data === 'pong') return;
+                const data = JSON.parse(e.data);
+
+                const rsrp = data.rsrp !== undefined ? data.rsrp : (data.current_telemetry ? data.current_telemetry.rsrp : null);
+                if (rsrp !== null && rsrp !== undefined) {
+                    document.getElementById('rsrp-val').innerText = `${rsrp} dBm`;
+                    pushPoint(throughputChart, rsrp);
+                }
+                if (data.bler !== null && data.bler !== undefined) {
+                    document.getElementById('bler-val').innerText = `${Number(data.bler).toFixed(1)} %`;
+                    document.getElementById('bler-tag').innerText = data.bler_estimated ? 'estimé' : 'réel';
+                    pushPoint(blerChart, data.bler);
+                }
+                if (data.sinr !== null && data.sinr !== undefined) {
+                    document.getElementById('sinr-val').innerText = `${Number(data.sinr).toFixed(1)} dB`;
+                    pushPoint(sinrChart, data.sinr);
+                }
+
+                if (data.cell_id) lastCellId = data.cell_id;
+                if (data.episode_recorded) loadHistory();
+                updatePhoneLocation(data.lat, data.lon, data.accuracy);
+                updateLivePanel(data);
+
+                const isCrit = !!(data.alert && data.alert.has_alert);
+                const banner = document.getElementById('mapBanner');
+                const diagWrap = document.getElementById('diag-wrap');
+                const alertsText = document.getElementById('alerts-text');
+                if (isCrit) {
+                    document.getElementById('mapBannerText').textContent = data.alert.message;
+                    banner.style.display = 'flex';
+                    document.getElementById('llm-diag-box').textContent = data.alert.message;
+                    diagWrap.style.display = 'flex';
+                    if (alertsText) alertsText.textContent = data.alert.message;
+                    if (window.Notification && Notification.permission === 'granted') {
+                        new Notification('NOC - Dégradation', { body: data.alert.message });
+                    }
+                } else {
+                    banner.style.display = 'none';
+                    diagWrap.style.display = 'none';
+                    if (alertsText) alertsText.textContent = 'Aucune alarme active.';
+                }
+            };
+
+            ws.onclose = function () {
+                wsConnected = false; refreshLiveStatus();
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onerror = function () {
+                ws.close();
+            };
+        }
+
+        connectWebSocket();
+
+        // Historique réel des incidents (mémoire épisodique)
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/v1/episodes?limit=30');
+                const items = await res.json();
+                const ul = document.getElementById('history-list');
+                if (!ul) return;
+                ul.innerHTML = items.length
+                    ? items.map(e => `<li>• <strong>${new Date(e.ts * 1000).toLocaleString('fr-FR')}</strong> - ${e.summary.replace(/^[^:]*: /, '')} <em>(${e.cell_id})</em></li>`).join('')
+                    : '<li>Aucun incident enregistré pour le moment.</li>';
+            } catch (err) { /* serveur indisponible */ }
+        }
+        loadHistory();
+
+        // Parseur simple Markdown vers HTML pour le chat
+        function formatMarkdown(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>')
+                .replace(/•/g, '&bull;');
+        }
+
+        // 5. CHATBOT API INTEGRATION
+        async function sendChat() {
+            const inp = document.getElementById('chatInp');
+            const logs = document.getElementById('chatLogs');
+            const msg = inp.value.trim();
+            if (!msg) return;
+
+            logs.innerHTML += `<div class="msg-bubble user">${msg}</div>`;
+            inp.value = '';
+            logs.scrollTop = logs.scrollHeight;
+
+            // Élément de chargement temporaire
+            const loadingId = 'loading-' + Date.now();
+            logs.innerHTML += `<div class="msg-bubble ai" id="${loadingId}">Analyse LLM en cours...</div>`;
+            logs.scrollTop = logs.scrollHeight;
+
+            try {
+                const res = await fetch('/api/v1/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cell_id: lastCellId, message: msg })
+                });
+                const data = await res.json();
+
+                const loadingElem = document.getElementById(loadingId);
+                if (loadingElem) {
+                    loadingElem.innerHTML = formatMarkdown(data.response);
+                }
+            } catch (err) {
+                const loadingElem = document.getElementById(loadingId);
+                if (loadingElem) {
+                    loadingElem.style.color = "var(--accent-red)";
+                    loadingElem.innerHTML = "Erreur de communication avec le serveur backend.";
+                }
+            }
+            logs.scrollTop = logs.scrollHeight;
+        }
+    </script>
+</body>
+
+</html>
